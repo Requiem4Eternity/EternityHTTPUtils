@@ -4,7 +4,7 @@
      2、小，很小，非常小！！！
 使用方法大概是这样：
 
-** 连接并获取JSON返回值：
+* 连接并获取JSON返回值：
 
 GET:
 
@@ -48,7 +48,7 @@ POST:
             }
         });
 
-* 当然如果你不想写出错和网络连接出现问题的回调事件的话：
+  当然如果你不想写出错和网络连接出现问题的回调事件的话：
 
             @Override
             public void onError(int reason) {
@@ -63,7 +63,7 @@ POST:
   作用是吐司你的错误信息。
  
  
-** 普通连接（返回字符串）：
+* 普通连接（返回字符串）：
  
         new EternityHTTPUtil().conn(context, url, EternityHTTPUtil.POST, hm, new IConnCallBack() {
             @Override
@@ -92,7 +92,7 @@ POST:
         eternityHTTPUtil.shutDown();
         //↑自动断开连接，关闭流
         
-** 获取HttpURLConnection对象：
+* 获取HttpURLConnection对象：
  
         final EternityHTTPUtil ehu=new EternityHTTPUtil();
         ehu.createConn(url, EternityHTTPUtil.GET, hashMap, new IConnCreateCallback() {
@@ -107,7 +107,7 @@ POST:
             }
         });
  
-** 文件下载：
+* 文件下载：
 
         new EHUDownLoadUtil().download(activity,"下载地址","下载路径",new Handler(){
             @Override
