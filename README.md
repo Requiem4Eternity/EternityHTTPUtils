@@ -1,3 +1,4 @@
+##注意：此项目因使用过时的HTTPUrlConnection方式，现已废弃并停止维护，代码仅供学习交流！
 # EternityHTTPUtils
 闲来无事自己写的安卓HTTP框架恩
 特点：1、没有任务队列，即用即创建
