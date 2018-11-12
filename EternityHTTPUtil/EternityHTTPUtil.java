@@ -1,6 +1,7 @@
-package com.beenvip.bvpassengergd.EternityHTTPUtil;
+package com.beenvip.fqpassengergd.EternityHTTPUtil;
 
 import android.content.Context;
+import android.content.pm.ApplicationInfo;
 import android.os.Handler;
 import android.os.Message;
 import android.support.annotation.Nullable;
@@ -27,8 +28,8 @@ import java.util.Iterator;
 
 public class EternityHTTPUtil {
 
-    //如需调试，可打开日志↓
-    public static final boolean LOG_ENABLED = true;
+    //如果需要在发布版打印链接及数据，此处设置为true
+    private boolean forceLog=false;
 
 
     public static final String GET = "GET";
@@ -39,14 +40,26 @@ public class EternityHTTPUtil {
     private Thread connThread;
     private Handler hdl_callback;
     private HttpURLConnection connRec;
+    private Boolean isDebug;
+    private Context context;
+
+    public EternityHTTPUtil(Context context) {
+        this.context=context;
+        try {
+            ApplicationInfo info= context.getApplicationInfo();
+            isDebug= (info.flags&ApplicationInfo.FLAG_DEBUGGABLE)!=0;
+        } catch (Exception e) {
+            isDebug=false;
+        }
+    }
 
     //创建连接
     public void createConn(final String url, final String method, final HashMap<String, String> params, final IConnCreateCallback iConnCreateCallback) {
 
-        if (LOG_ENABLED) {
+        if (isDebug||forceLog) {
             Log.i("url", url);
         }
-        if (connThread!=null){
+        if (connThread != null) {
             shutDownStream(connRec);
         }
         new Thread() {
@@ -54,33 +67,44 @@ public class EternityHTTPUtil {
             public void run() {
                 super.run();
                 try {
-                    URL connUrl = new URL(url);
-                    HttpURLConnection conn = (HttpURLConnection) connUrl.openConnection();
-                    connRec=conn;
-                    conn.setRequestMethod(method);
-                    conn.setConnectTimeout(5000);
-                    conn.setReadTimeout(5000);
-                    if (conn.getRequestMethod().equals("POST")) {
-                        if (params != null && params.size() > 0) {
-                            StringBuffer sb_params = new StringBuffer();
-                            Iterator<String> itKey = params.keySet().iterator();
-                            for (int i = 0; i < params.size(); i++) {
-                                if (i != 0) {
-                                    sb_params.append("&");
-                                }
-                                String key = itKey.next();
-                                sb_params.append(key);
-                                sb_params.append("=");
-                                sb_params.append(params.get(key));
-                                if (LOG_ENABLED){
-                                    Log.i("post",key+"="+params.get(key));
-                                }
+                    URL connUrl;
+                    HttpURLConnection conn;
+                    String trueUrl=url;
+                    if (params != null && params.size() > 0) {
+                        StringBuilder sb_params = new StringBuilder();
+                        Iterator<String> itKey = params.keySet().iterator();
+                        for (int i = 0; i < params.size(); i++) {
+                            if (i != 0) {
+                                sb_params.append("&");
                             }
+                            String key = itKey.next();
+                            sb_params.append(key);
+                            sb_params.append("=");
+                            sb_params.append(params.get(key));
+                            if (isDebug||forceLog) {
+                                Log.i("post", key + "=" + params.get(key));
+                            }
+                        }
+                        if (method.equals("POST")) {
+                            connUrl=new URL(trueUrl);
+                            conn= (HttpURLConnection) connUrl.openConnection();
+                            conn.setRequestMethod(POST);
                             OutputStream os = conn.getOutputStream();
                             os.write(sb_params.toString().getBytes());
                             os.flush();
+                        } else {
+                            trueUrl+="?"+sb_params;
+                            connUrl=new URL(trueUrl);
+                            conn= (HttpURLConnection) connUrl.openConnection();
                         }
+                    }else {
+                        connUrl=new URL(trueUrl);
+                        conn= (HttpURLConnection) connUrl.openConnection();
                     }
+                    connRec = conn;
+                    conn.setRequestMethod(method);
+                    conn.setConnectTimeout(5000);
+                    conn.setReadTimeout(5000);
                     iConnCreateCallback.onConnCreated(conn);
                 } catch (IOException e) {
                     e.printStackTrace();
@@ -109,7 +133,7 @@ public class EternityHTTPUtil {
                 is.close();
                 String result = new String(baos.toByteArray());
 
-                if (LOG_ENABLED) {
+                if (isDebug||forceLog) {
                     Log.i("eternityResult", result);
                 }
 
@@ -135,11 +159,11 @@ public class EternityHTTPUtil {
             if (hdl_callback != null) {
                 hdl_callback.sendEmptyMessage(NETWORK_ERROR);
             }
-        }catch (ConnectException e){
+        } catch (ConnectException e) {
             if (hdl_callback != null) {
                 hdl_callback.sendEmptyMessage(NETWORK_ERROR);
             }
-        }catch (Exception e) {
+        } catch (Exception e) {
             e.printStackTrace();
         } finally {
             shutDownStream(conn);
@@ -147,8 +171,8 @@ public class EternityHTTPUtil {
     }
 
     //开始连接，返回JSON
-    public void startConnForJSON(Context context,HttpURLConnection conn ,final IJSONCallback callback) {
-        startConn(context,conn, new IConnCallBack() {
+    public void startConnForJSON(HttpURLConnection conn, final IJSONCallback callback) {
+        startConn(conn, new IConnCallBack() {
             @Override
             public void onSuccess(String str) {
                 try {
@@ -172,55 +196,67 @@ public class EternityHTTPUtil {
     }
 
     //开始连接
-    public void startConn(Context context, final HttpURLConnection conn, final IConnCallBack callback) {
-        hdl_callback = new Handler(context.getMainLooper()) {
-            @Override
-            public void handleMessage(Message msg) {
-                super.handleMessage(msg);
-                switch (msg.what) {
-                    case CONN_OK:
-                        callback.onSuccess(msg.obj.toString());
-                        break;
-                    case NETWORK_ERROR:
-                        callback.onNetworkCrashed();
-                        break;
-                    default:
-                        callback.onError(msg.what);
-                        break;
-                }
-            }
-        };
-        connThread = new Thread() {
-            @Override
-            public void run() {
-                super.run();
-                    if (conn == null) {
-                        Log.e("EternityHTTP", "您还没有创建连接，请先用createConn()方法创建连接！");
-                    } else {
-                        startConn(conn);
-                    }
-            }
-        };
-        connThread.start();
-    }
-
-    //创建并开始连接
-    public void conn(Context context, final String url, final String method, @Nullable final HashMap<String, String> params, final IConnCallBack callback) {
+    public void startConn(final HttpURLConnection conn, final IConnCallBack callback) {
         try {
             hdl_callback = new Handler(context.getMainLooper()) {
                 @Override
                 public void handleMessage(Message msg) {
                     super.handleMessage(msg);
-                    switch (msg.what) {
-                        case CONN_OK:
-                            callback.onSuccess(msg.obj.toString());
-                            break;
-                        case NETWORK_ERROR:
-                            callback.onNetworkCrashed();
-                            break;
-                        default:
-                            callback.onError(msg.what);
-                            break;
+                    try {
+                        switch (msg.what) {
+                            case CONN_OK:
+                                callback.onSuccess(msg.obj.toString());
+                                break;
+                            case NETWORK_ERROR:
+                                callback.onNetworkCrashed();
+                                break;
+                            default:
+                                callback.onError(msg.what);
+                                break;
+                        }
+                    }catch (Exception e){
+                        e.printStackTrace();
+                    }
+                }
+            };
+            connThread = new Thread() {
+                @Override
+                public void run() {
+                    super.run();
+                    if (conn == null) {
+                        Log.e("EternityHTTP", "您还没有创建连接，请先用createConn()方法创建连接！");
+                    } else {
+                        startConn(conn);
+                    }
+                }
+            };
+            connThread.start();
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+    }
+
+    //创建并开始连接
+    public void conn(final String url, final String method, @Nullable final HashMap<String, String> params, final IConnCallBack callback) {
+        try {
+            hdl_callback = new Handler(context.getMainLooper()) {
+                @Override
+                public void handleMessage(Message msg) {
+                    super.handleMessage(msg);
+                    try {
+                        switch (msg.what) {
+                            case CONN_OK:
+                                callback.onSuccess(msg.obj.toString());
+                                break;
+                            case NETWORK_ERROR:
+                                callback.onNetworkCrashed();
+                                break;
+                            default:
+                                callback.onError(msg.what);
+                                break;
+                        }
+                    }catch (Exception e){
+                        e.printStackTrace();
                     }
                 }
             };
@@ -238,12 +274,14 @@ public class EternityHTTPUtil {
             };
             connThread.start();
         } catch (NullPointerException e) {
+        }catch (Exception e){
+            e.printStackTrace();
         }
     }
 
     //创建并开始连接，返回JSON
-    public void connForJSON(Context context, final String url, final String method, @Nullable final HashMap<String, String> params, final IJSONCallback callback) {
-        conn(context, url, method, params, new IConnCallBack() {
+    public void connForJSON(final String url, final String method, @Nullable final HashMap<String, String> params, final IJSONCallback callback) {
+        conn(url, method, params, new IConnCallBack() {
             @Override
             public void onSuccess(String str) {
                 try {
@@ -271,9 +309,10 @@ public class EternityHTTPUtil {
     }
 
     //取消连接回调
-    public void shutDown(){
-        hdl_callback=null;
+    public void shutDown() {
+        hdl_callback = null;
     }
+
     //关闭流
     private void shutDownStream(HttpURLConnection conn) {
         if (conn != null) {
@@ -288,6 +327,6 @@ public class EternityHTTPUtil {
             } catch (Exception e) {
             }
         }
-        connThread=null;
+        connThread = null;
     }
 }

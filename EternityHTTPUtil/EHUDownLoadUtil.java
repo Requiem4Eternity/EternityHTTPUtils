@@ -1,4 +1,4 @@
-package com.beenvip.bvpassengergd.EternityHTTPUtil;
+package com.beenvip.fqpassengergd.EternityHTTPUtil;
 
 import android.Manifest;
 import android.app.Activity;
