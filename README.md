@@ -3,7 +3,7 @@
 闲来无事自己写的安卓HTTP框架恩
 特点：1、没有任务队列，即用即创建
      2、小，很小，非常小！！！
-使用方法大概是这样：
+使用方法：
 
 * 连接并获取JSON返回值：
 
@@ -12,7 +12,7 @@ GET:
         new EternityHTTPUtil.connForJSON(context, url, EternityHTTPUtil.GET, null, new IJSONCallback() {
             @Override
             public void onSuccess(JSONObject json) {
-                //恩这里的json就是服务器返回的JSON数据
+                //这里的json就是服务器返回的JSON数据
             }
 
             @Override
@@ -30,7 +30,7 @@ GET:
 POST:
         
         HashMap<String,String> hm=new HashMap<>();
-        //↑这个HashMap里的数据会自动打成表单提交的参数恩
+        //↑这个HashMap里的数据会自动打成表单提交的参数
         hm.put("key","value");
         new EternityHTTPUtil().connForJSON(context, url, EternityHTTPUtil.POST, hm, new IJSONCallback() {
             @Override
